@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
 
 	auto bytes_received = recv(client_fd, static_cast<void*>(&client_msg[0]), 512, 0);
 
-	const std::string msg = (client_msg.starts_with("GET / HTTP /1.1\r\n") ? success_msg : fail_msg);
+	const std::string msg = (client_msg.starts_with("GET / HTTP/1.1\r\n") ? success_msg : fail_msg);
 	send(client_fd, msg.c_str(), msg.length(), 0);
 	std::cout << "Client connected\n";
 
