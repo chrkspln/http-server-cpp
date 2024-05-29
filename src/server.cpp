@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
 	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
-	auto bytes_received = recv(client_fd, static_cast<void*>(&client_msg), 512, 0);
+	auto bytes_received = recv(client_fd, static_cast<void*>(&client_msg[0]), 512, 0);
 
 	const std::string msg = (client_msg.starts_with("GET / HTTP / 1.1\r\n") ? success_msg : fail_msg);
 	send(client_fd, msg.c_str(), msg.length(), 0);
