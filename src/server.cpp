@@ -45,13 +45,13 @@ int main(int argc, char** argv) {
 	std::cout << "Waiting for a client to connect...\n";
 
 	int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, (socklen_t*)&client_addr_len);
-	std::string client_msg[100]{};
-	std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
-	std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
+	std::string client_msg(512, '\0');
+	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
+	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
 	auto bytes_received = recv(client_fd, client_msg, 100, 0);
 
-	std::string msg = (client_msg->starts_with("GET / HTTP / 1.1\r\n") ? success_msg : fail_msg);
+	const std::string msg = (client_msg.starts_with("GET / HTTP / 1.1\r\n") ? success_msg : fail_msg);
 	send(client_fd, msg.c_str(), msg.length(), 0);
 	std::cout << "Client connected\n";
 
