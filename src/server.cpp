@@ -8,7 +8,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-constexpr int BUFFER = 1024;
+constexpr int buffer = 1024;
+constexpr int connection_backlog = 5;
 
 int main() {
 	const int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -35,6 +36,11 @@ int main() {
 		return 1;
 	}
 
+	if (listen(server_fd, connection_backlog) != 0) {
+		std::cerr << "listen failed\n";
+		return 1;
+	}
+
 	struct sockaddr_in client_addr;
 	int client_addr_len = sizeof(client_addr);
 
@@ -45,10 +51,11 @@ int main() {
 
 	if (client_fd < 0) {
 		std::cerr << "Failed to accept client connection\n";
+		std::cerr << "Error: " << strerror(errno) << std::endl;
 		return 1;
 	}
 
-	std::string client_msg(BUFFER, '\0');
+	std::string client_msg(buffer, '\0');
 	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
 	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
