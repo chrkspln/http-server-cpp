@@ -79,7 +79,8 @@ int main() {
 		int start_i = client_msg.find(user_ag);
 		int end_i = client_msg.find("\r\n\r\n", start_i);
 		std::string read_header = client_msg.substr(start_i + user_ag.length(), end_i);
-		end_i = read_header.find_first_of('\x00');
+
+		end_i = read_header.find_first_of("\r\n\r\n");
 		std::string out_header = read_header.substr(0, end_i);
 
 		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " +
