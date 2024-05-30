@@ -42,11 +42,17 @@ int main() {
 
 	const int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr*>(&client_addr),
 		reinterpret_cast<socklen_t*>(&client_addr_len));
+
+	if (client_fd < 0) {
+		std::cerr << "Failed to accept client connection\n";
+		return 1;
+	}
+
 	std::string client_msg(BUFFER, '\0');
 	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
 	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
-	const auto bytes_received = recv(client_fd, client_msg.data(), 512, 0);
+	auto const bytes_received = recv(client_fd, client_msg.data(), 512, 0);
 
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		send(client_fd, success_msg.data(), success_msg.length(), 0);
