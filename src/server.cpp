@@ -48,8 +48,6 @@ int main() {
 
 	const auto bytes_received = recv(client_fd, client_msg.data(), 512, 0);
 
-	client_msg.resize(bytes_received);
-
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		send(client_fd, success_msg.data(), success_msg.length(), 0);
 	}
