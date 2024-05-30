@@ -64,16 +64,16 @@ int main() {
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		send(client_fd, success_msg.data(), success_msg.length(), 0);
 	}
-	//// Check if the client message is a "GET /echo/" request
-	//else if (client_msg.starts_with("GET /echo/")) {
-	//	const int stop_index = client_msg.find("HTTP");
-	//	// Extract the message to be sent back to the client:
-	//	// 10 is the length of "GET /echo/", 11 is the length of "GET /echo/ plus whitespace at the end of the word"
-	//	const std::string echo_msg = client_msg.substr(10, stop_index - 11);
-	//	const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-	//		+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
-	//	send(client_fd, response.data(), response.length(), 0);
-	//}
+	// Check if the client message is a "GET /echo/" request
+	else if (client_msg.starts_with("GET /echo/")) {
+		const int stop_index = client_msg.find("HTTP");
+		// Extract the message to be sent back to the client:
+		// 10 is the length of "GET /echo/", 11 is the length of "GET /echo/ plus whitespace at the end of the word"
+		const std::string echo_msg = client_msg.substr(10, stop_index - 11);
+		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
+		send(client_fd, response.data(), response.length(), 0);
+	}
 	else if (client_msg.starts_with("GET /user-agent")) {
 		std::string user_ag = "User-Agent: ";
 		int start_i = client_msg.find(user_ag);
