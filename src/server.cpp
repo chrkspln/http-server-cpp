@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+constexpr int BUFFER = 1024;
+
 int main() {
 	const int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd < 0) {
@@ -39,15 +41,31 @@ int main() {
 	std::cout << "Waiting for a client to connect...\n";
 
 	const int client_fd = accept(server_fd, reinterpret_cast<sockaddr*>(&client_addr), reinterpret_cast<socklen_t*>(&client_addr_len));
-	std::string client_msg(512, '\0');
+	std::string client_msg(BUFFER, '\0');
 	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
 	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
-	auto bytes_received = recv(client_fd, client_msg.data(), 512, 0);
+	const auto bytes_received = recv(client_fd, client_msg.data(), 512, 0);
 
-	const std::string msg = (client_msg.starts_with("GET / HTTP/1.1\r\n") ? success_msg : fail_msg);
-	send(client_fd, msg.c_str(), msg.length(), 0);
-	std::cout << "Client connected\n";
+	if (bytes_received < 0) {
+		std::cerr << "Failed to read from client\n";
+		return 1;
+	}
+
+	client_msg.resize(bytes_received);
+
+	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
+		send(client_fd, success_msg.data(), success_msg.length(), 0);
+	}
+	else if (client_msg.substr(2, 7) == "/echo/") {
+		const int stop_index = client_msg.find("\r\n");
+		const std::string echo_msg = client_msg.substr(9, stop_index - 9);
+		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
+		send(client_fd, response.data(), response.length(), 0);
+	}
+	else {
+		send(client_fd, fail_msg.data(), fail_msg.length(), 0);
+	}
 
 	close(server_fd);
 
