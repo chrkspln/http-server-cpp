@@ -59,14 +59,17 @@ int main() {
 	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
 	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
-	auto const bytes_received = recv(client_fd, client_msg.data(), 512, 0);
+	auto const bytes_received = recv(client_fd, client_msg.data(), buffer, 0);
 
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		send(client_fd, success_msg.data(), success_msg.length(), 0);
 	}
-	else if (client_msg.substr(2, 7) == "/echo/") {
-		const int stop_index = client_msg.find("\r\n");
-		const std::string echo_msg = client_msg.substr(9, stop_index - 9);
+	// Check if the client message is a "GET /echo/" request
+	else if (client_msg.substr(4, 6) == "/echo/") {
+		const int stop_index = client_msg.find("HTTP");
+		// Extract the message to be sent back to the client:
+		// 10 is the length of "GET /echo/", 11 is the length of "GET /echo/ plus whitespace at the end of the word"
+		const std::string echo_msg = client_msg.substr(10, stop_index - 11);
 		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
 			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
 		send(client_fd, response.data(), response.length(), 0);
