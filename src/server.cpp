@@ -25,32 +25,28 @@ int main() {
 		return 1;
 	}
 
-	sockaddr_in server_addr;
+	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(4221);
 
-	if (bind(server_fd, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) != 0) {
+	if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr)) != 0) {
 		std::cerr << "Failed to bind to port 4221\n";
 		return 1;
 	}
 
-	sockaddr_in client_addr;
+	struct sockaddr_in client_addr;
 	int client_addr_len = sizeof(client_addr);
 
 	std::cout << "Waiting for a client to connect...\n";
 
-	const int client_fd = accept(server_fd, reinterpret_cast<sockaddr*>(&client_addr), reinterpret_cast<socklen_t*>(&client_addr_len));
+	const int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr*>(&client_addr),
+		reinterpret_cast<socklen_t*>(&client_addr_len));
 	std::string client_msg(BUFFER, '\0');
 	const std::string success_msg = "HTTP/1.1 200 OK\r\n\r\n";
 	const std::string fail_msg = "HTTP/1.1 404 Not Found\r\n\r\n";
 
 	const auto bytes_received = recv(client_fd, client_msg.data(), 512, 0);
-
-	if (bytes_received < 0) {
-		std::cerr << "Failed to read from client\n";
-		return 1;
-	}
 
 	client_msg.resize(bytes_received);
 
@@ -60,7 +56,8 @@ int main() {
 	else if (client_msg.substr(2, 7) == "/echo/") {
 		const int stop_index = client_msg.find("\r\n");
 		const std::string echo_msg = client_msg.substr(9, stop_index - 9);
-		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
+		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
 		send(client_fd, response.data(), response.length(), 0);
 	}
 	else {
