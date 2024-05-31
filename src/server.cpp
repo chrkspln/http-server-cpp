@@ -69,27 +69,7 @@ void get_user_ag_response(const int& client_fd, const std::string& client_msg) {
 	connection_ended.notify_all();
 }
 
-void processing_user_request(const int& server_fd) {
-	struct sockaddr_in client_addr;
-	int client_addr_len = sizeof(client_addr);
-
-	const int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr*>(&client_addr),
-								 reinterpret_cast<socklen_t*>(&client_addr_len));
-
-	if (client_fd < 0) {
-		std::cerr << "Failed to accept client connection\n";
-		std::cerr << "Error: " << strerror(errno) << std::endl;
-		exit(1);
-	}
-
-	std::string client_msg(buffer, '\0');
-	auto const bytes_received = recv(client_fd, client_msg.data(), buffer, 0);
-
-	if (bytes_received < 0) {
-		std::cerr << "Failed to receive message from client\n";
-		exit(1);
-	}
-
+void processing_user_request(const int& client_fd, const std::string& client_msg) {
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		default_success_response(client_fd);
 	} else if (client_msg.starts_with("GET /echo/")) {
@@ -99,6 +79,20 @@ void processing_user_request(const int& server_fd) {
 	} else {
 		default_fail_response(client_fd);
 	}
+}
+
+void handle_client(const int& client_fd) {
+	std::string client_msg(buffer, '\0');
+	auto const bytes_received = recv(client_fd, client_msg.data(), buffer, 0);
+
+	if (bytes_received < 0) {
+		std::cerr << "Failed to receive message from client\n";
+		close(client_fd);
+		return;
+	}
+
+	processing_user_request(client_fd, client_msg);
+	close(client_fd);
 }
 
 int main() {
@@ -111,12 +105,12 @@ int main() {
 		return 1;
 	}
 
-	struct sockaddr_in server_addr;
+	sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(4221);
 
-	if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr)) != 0) {
+	if (bind(server_fd, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) != 0) {
 		std::cerr << "Failed to bind to port 4221\n";
 		return 1;
 	}
@@ -127,8 +121,20 @@ int main() {
 	}
 
 	while (threads.size() < connection_backlog) {
-		threads.emplace_back([server_fd]() {
-			processing_user_request(server_fd);
+		sockaddr_in client_addr;
+		int client_addr_len = sizeof(client_addr);
+
+		const int client_fd = accept(server_fd, reinterpret_cast<struct sockaddr*>(&client_addr),
+									 reinterpret_cast<socklen_t*>(&client_addr_len));
+
+		if (client_fd < 0) {
+			std::cerr << "Failed to accept client connection\n";
+			std::cerr << "Error: " << strerror(errno) << std::endl;
+			continue;
+		}
+
+		threads.emplace_back([client_fd]() {
+			handle_client(client_fd);
 							 });
 	}
 
