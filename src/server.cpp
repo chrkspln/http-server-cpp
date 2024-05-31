@@ -86,11 +86,21 @@ void get_files_response(const int& client_fd, const std::string& client_msg, con
 }
 
 void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
-	const int stop_index = client_msg.find("HTTP");
+	int stop_index = client_msg.find("HTTP");
 	const std::string echo_file = client_msg.substr(11, stop_index - 12);
+
+	int start_index = client_msg.find("Content-Length: ");
+	stop_index = client_msg.find("\r\n\r\n", start_index);
+	const std::string echo_file_contents_len = client_msg.substr(start_index + 16, stop_index - 17);
+
+	start_index = client_msg.find("\r\n\r\n");
+	stop_index = client_msg.find("\r\n", start_index + 4);
+	const std::string echo_file_contents = client_msg.substr(start_index + 4, stop_index - 5);
+
 	std::ofstream outfile(dir + echo_file);
-	outfile << outfile.rdbuf();
+	outfile << echo_file_contents;
 	outfile.close();
+
 	std::string response = "HTTP/1.1 201 Created\r\n\r\n";
 	send(client_fd, response.data(), response.length(), 0);
 }
