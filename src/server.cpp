@@ -94,8 +94,7 @@ void post_files_response(const int& client_fd, const std::string& client_msg, co
 	const std::string echo_file_contents_len = client_msg.substr(start_index + 16, stop_index - 17);
 
 	start_index = client_msg.find("\r\n\r\n");
-	stop_index = client_msg.find("\r\n", start_index + 4);
-	const std::string echo_file_contents = client_msg.substr(start_index + 4, stop_index - 5);
+	const std::string echo_file_contents = client_msg.substr(start_index + 4, echo_file_contents_len);
 
 	std::ofstream outfile(dir + echo_file);
 	outfile << echo_file_contents;
