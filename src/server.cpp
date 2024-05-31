@@ -71,7 +71,7 @@ void get_user_ag_response(const int& client_fd, const std::string& client_msg) {
 	connection_ended.notify_all();
 }
 
-void files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
+void get_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
 	const int stop_index = client_msg.find("HTTP");
 	const std::string echo_file = client_msg.substr(11, stop_index - 12);
 	std::ifstream ifs(dir + echo_file);
@@ -85,6 +85,16 @@ void files_response(const int& client_fd, const std::string& client_msg, const s
 	}
 }
 
+void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
+	const int stop_index = client_msg.find("HTTP");
+	const std::string echo_file = client_msg.substr(11, stop_index - 12);
+	std::ofstream outfile(dir + echo_file);
+	outfile << outfile.rdbuf();
+	outfile.close();
+	std::string response = "HTTP/1.1 201 Created\r\n\r\n";
+	send(client_fd, response.data(), response.length(), 0);
+}
+
 void processing_user_request(const int& client_fd, const std::string& client_msg, const std::string& dir) {
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		default_success_response(client_fd);
@@ -93,7 +103,9 @@ void processing_user_request(const int& client_fd, const std::string& client_msg
 	} else if (client_msg.starts_with("GET /user-agent")) {
 		get_user_ag_response(client_fd, client_msg);
 	} else if (client_msg.starts_with("GET /files/")) {
-		files_response(client_fd, client_msg, dir);
+		get_files_response(client_fd, client_msg, dir);
+	} else if (client_msg.starts_with("POST /files/")) {
+		post_files_response(client_fd, client_msg, dir);
 	} else {
 		default_fail_response(client_fd);
 	}
