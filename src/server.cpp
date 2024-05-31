@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <vector>
 #include <threads.h>
 #include <cstdlib>
@@ -69,19 +71,35 @@ void get_user_ag_response(const int& client_fd, const std::string& client_msg) {
 	connection_ended.notify_all();
 }
 
-void processing_user_request(const int& client_fd, const std::string& client_msg) {
+void files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
+	const int stop_index = client_msg.find("HTTP");
+	const std::string echo_file = client_msg.substr(11, stop_index - 12);
+	std::ifstream ifs(dir + echo_file);
+	if (ifs.good()) {
+		std::stringstream content{};
+		content << ifs.rdbuf();
+		std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: " + std::to_string(content.str().length()) + "\r\n\r\n" + content.str() + "\r\n";
+		send(client_fd, response.data(), response.length(), 0);
+	} else {
+		default_fail_response(client_fd);
+	}
+}
+
+void processing_user_request(const int& client_fd, const std::string& client_msg, const std::string& dir) {
 	if (client_msg.starts_with("GET / HTTP/1.1\r\n")) {
 		default_success_response(client_fd);
 	} else if (client_msg.starts_with("GET /echo/")) {
 		get_echo_response(client_fd, client_msg);
 	} else if (client_msg.starts_with("GET /user-agent")) {
 		get_user_ag_response(client_fd, client_msg);
+	} else if (client_msg.starts_with("GET /files/")) {
+		files_response(client_fd, client_msg, dir);
 	} else {
 		default_fail_response(client_fd);
 	}
 }
 
-void handle_client(const int& client_fd) {
+void handle_client(const int& client_fd, const std::string& dir) {
 	std::string client_msg(buffer, '\0');
 	auto const bytes_received = recv(client_fd, client_msg.data(), buffer, 0);
 
@@ -91,11 +109,15 @@ void handle_client(const int& client_fd) {
 		return;
 	}
 
-	processing_user_request(client_fd, client_msg);
+	processing_user_request(client_fd, client_msg, dir);
 	close(client_fd);
 }
 
-int main() {
+int main(int argc, char** argv) {
+	std::string dir{};
+	if (argc == 3 && strcmp(argv[1], "--directory") == 0) {
+		dir = argv[2];
+	}
 	const int server_fd = create_socket();
 	// Since the tester restarts your program quite often, setting SO_REUSEADDR
 	// ensures that we don't run into 'Address already in use' errors
@@ -133,8 +155,8 @@ int main() {
 			continue;
 		}
 
-		threads.emplace_back([client_fd]() {
-			handle_client(client_fd);
+		threads.emplace_back([client_fd, dir]() {
+			handle_client(client_fd, dir);
 							 });
 	}
 
