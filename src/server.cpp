@@ -125,16 +125,16 @@ int main() {
 		return 1;
 	}
 
-	std::string client_msg(buffer, '\0');
-	auto const bytes_received = recv(client_fd, client_msg.data(), buffer, 0);
-
-	if (bytes_received < 0) {
-		std::cerr << "Failed to receive message from client\n";
-		return 1;
-	}
-
 	while (threads.size() < connection_backlog)
 	{
+		std::string client_msg(buffer, '\0');
+		auto const bytes_received = recv(client_fd, client_msg.data(), buffer, 0);
+
+		if (bytes_received < 0) {
+			std::cerr << "Failed to receive message from client\n";
+			return 1;
+		}
+
 		threads.emplace_back([client_fd, client_msg]()
 			{
 				processing_user_request(client_fd, client_msg);
