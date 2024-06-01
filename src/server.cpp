@@ -65,7 +65,7 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 		std::string encode = encoding_request(client_msg, index);
 		if (encode.find("gzip") != std::string::npos) {
 			std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + encode + "\r\n\r\n" + echo_msg;
+				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + "gzip" + "\r\n\r\n" + echo_msg;
 			send(client_fd, response.data(), response.length(), 0);
 			connection_ended.store(true, std::memory_order::release);
 			connection_ended.notify_all();
