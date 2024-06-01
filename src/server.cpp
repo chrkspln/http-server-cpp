@@ -58,7 +58,7 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 	const int stop_index = client_msg.find("HTTP");
 
 	// Extract the message to be sent back to the client:
-	const std::string echo_msg = client_msg.substr(get.length() - 1, stop_index - get.length());
+	const std::string echo_msg = client_msg.substr(get.length(), stop_index - get.length());
 
 	if (auto index = client_msg.find("Accept-Encoding: "); index != std::string::npos
 		and client_msg.find("invalid-encoding") == std::string::npos) {
