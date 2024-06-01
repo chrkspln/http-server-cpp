@@ -69,14 +69,17 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 			send(client_fd, response.data(), response.length(), 0);
 			connection_ended.store(true, std::memory_order::release);
 			connection_ended.notify_all();
+			return;
 		}
-	} else {
-		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
-		send(client_fd, response.data(), response.length(), 0);
-		connection_ended.store(true, std::memory_order::release);
-		connection_ended.notify_all();
+		return;
 	}
+
+	const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+		+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
+	send(client_fd, response.data(), response.length(), 0);
+	connection_ended.store(true, std::memory_order::release);
+	connection_ended.notify_all();
+	return;
 }
 
 std::string encoding_request(const std::string& client_msg, int start_encoding_index) {
