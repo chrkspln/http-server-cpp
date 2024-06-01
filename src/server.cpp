@@ -58,7 +58,7 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 	const int stop_index = client_msg.find("HTTP");
 
 	// Extract the message to be sent back to the client:
-	const std::string echo_msg = client_msg.substr(get.length(), stop_index - get.length());
+	const std::string echo_msg = client_msg.substr(get.length(), stop_index - get.length() - 1);
 
 	if (auto index = client_msg.find("Accept-Encoding: "); index != std::string::npos
 		and client_msg.find("invalid-encoding") == std::string::npos) {
@@ -120,7 +120,7 @@ void get_files_response(const int& client_fd, const std::string& client_msg, con
 void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
 	std::string post_files = "POST /files/";
 	int stop_index = client_msg.find("HTTP");
-	const std::string echo_file = client_msg.substr(post_files.length() - 1, stop_index - post_files.length());
+	const std::string echo_file = client_msg.substr(post_files.length(), stop_index - post_files.length() - 1);
 
 	std::string content_len_msg = "Content-Length: ";
 	int start_index = client_msg.find(content_len_msg);
