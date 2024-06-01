@@ -3,6 +3,8 @@
 #include <sstream>
 #include <vector>
 #include <threads.h>
+#include <zlib.h>
+//#include "../../../../../Microsoft/AndroidNDK/android-ndk-r21e/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/zlib.h"
 #include <cstdlib>
 // i couldnt make zlib.h work on ubuntu so i had to use it from android ndk
 #include "../../../../../Microsoft/AndroidNDK/android-ndk-r21e/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/zlib.h"
