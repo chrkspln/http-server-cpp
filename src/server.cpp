@@ -3,6 +3,8 @@
 #include <sstream>
 #include <vector>
 #include <threads.h>
+#include <zlib.h>
+//#include "../../../../../Microsoft/AndroidNDK/android-ndk-r21e/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/zlib.h"
 #include <cstdlib>
 #include <string>
 #include <cstring>
@@ -23,12 +25,53 @@ void get_files_response(const int& client_fd, const std::string& client_msg, con
 void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir);
 void processing_user_request(const int& client_fd, const std::string& client_msg, const std::string& dir);
 void handle_client(const int& client_fd, const std::string& dir);
+std::vector<unsigned char> compressString(const std::string& str);
 
 constexpr int buffer = 1024;
 constexpr int connection_backlog = 5;
 
 std::atomic<bool> connection_ended{ false };
 std::vector<std::jthread> threads{};
+
+// Function to compress data using zlib with gzip
+std::vector<unsigned char> compressString(const std::string& str) {
+	// Setup the output buffer
+	std::vector<unsigned char> compressedData;
+
+	// Setup the zlib stream
+	z_stream zs;
+	memset(&zs, 0, sizeof(zs));
+
+	// Initialize the zlib stream for compression with gzip encoding
+	if (deflateInit2(&zs, Z_BEST_COMPRESSION, Z_DEFLATED, MAX_WBITS | 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+		throw std::runtime_error("deflateInit2 failed");
+	}
+
+	// Set the input data
+	zs.next_in = (Bytef*)str.data();
+	zs.avail_in = str.size();
+
+	// Temporary buffer to hold compressed data
+	const size_t bufferSize = 32768; // 32 KB
+	unsigned char buffer[bufferSize];
+
+	// Compress the data
+	int ret;
+	do {
+		zs.next_out = buffer;
+		zs.avail_out = bufferSize;
+
+		ret = deflate(&zs, Z_FINISH);
+
+		if (compressedData.size() < zs.total_out) {
+			compressedData.insert(compressedData.end(), buffer, buffer + bufferSize - zs.avail_out);
+		}
+	} while (ret == Z_OK);
+
+	// Clean up
+	deflateEnd(&zs);
+	return compressedData;
+}
 
 int create_socket() {
 	const int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -64,8 +107,11 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 		and client_msg.find("invalid-encoding") == std::string::npos) {
 		std::string encode = encoding_request(client_msg, index);
 		if (encode.find("gzip") != std::string::npos) {
+			// Compress the message using gzip:
+			std::vector<unsigned char> compressed_msg = compressString(echo_msg);
+			std::string compressed_msg_string(compressed_msg.begin(), compressed_msg.end());
 			std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + "gzip" + "\r\n\r\n" + echo_msg;
+				+ std::to_string(compressed_msg.size()) + "\r\nContent-Encoding: " + "gzip" + "\r\n\r\n" + compressed_msg_string;
 			send(client_fd, response.data(), response.length(), 0);
 			connection_ended.store(true, std::memory_order::release);
 			connection_ended.notify_all();
