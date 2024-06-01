@@ -63,11 +63,13 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 	if (auto index = client_msg.find("Accept-Encoding: "); index != std::string::npos
 		and client_msg.find("invalid-encoding") == std::string::npos) {
 		std::string encode = encoding_request(client_msg, index);
-		std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-			+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + encode + "\r\n\r\n" + echo_msg;
-		send(client_fd, response.data(), response.length(), 0);
-		connection_ended.store(true, std::memory_order::release);
-		connection_ended.notify_all();
+		if (encode.find("gzip") != std::string::npos) {
+			std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + encode + "\r\n\r\n" + echo_msg;
+			send(client_fd, response.data(), response.length(), 0);
+			connection_ended.store(true, std::memory_order::release);
+			connection_ended.notify_all();
+		}
 	} else {
 		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
 			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
