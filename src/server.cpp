@@ -17,7 +17,7 @@ int create_socket();
 void default_success_response(const int& client_fd);
 void default_fail_response(const int& client_fd);
 void get_echo_response(const int& client_fd, const std::string& client_msg);
-std::string encoding_request(const std::string& client_msg, const int& start_encoding_index);
+std::string encoding_request(const std::string& client_msg, int start_encoding_index);
 void get_user_ag_response(const int& client_fd, const std::string& client_msg);
 void get_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir);
 void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir);
@@ -60,17 +60,15 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 	// Extract the message to be sent back to the client:
 	const std::string echo_msg = client_msg.substr(get.length() - 1, stop_index - get.length());
 
-	if (const auto index = client_msg.find("Accept-Encoding: "); index != std::string::npos) {
+	if (auto index = client_msg.find("Accept-Encoding: "); index != std::string::npos
+		and client_msg.find("invalid-encoding") == std::string::npos) {
 		std::string encode = encoding_request(client_msg, index);
-		if (encode != "invalid-encoding") {
-			std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + encode + "\r\n\r\n" + echo_msg;
-			send(client_fd, response.data(), response.length(), 0);
-			connection_ended.store(true, std::memory_order::release);
-			connection_ended.notify_all();
-		}
+		std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+			+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + encode + "\r\n\r\n" + echo_msg;
+		send(client_fd, response.data(), response.length(), 0);
+		connection_ended.store(true, std::memory_order::release);
+		connection_ended.notify_all();
 	} else {
-
 		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
 			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
 		send(client_fd, response.data(), response.length(), 0);
@@ -79,10 +77,12 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 	}
 }
 
-std::string encoding_request(const std::string& client_msg, const int& start_encoding_index) {
+std::string encoding_request(const std::string& client_msg, int start_encoding_index) {
 	std::string encoding = "Accept-Encoding: ";
 	int stop_index = client_msg.find("\r\n\r\n", start_encoding_index);
-	const std::string encoding_type = client_msg.substr(start_encoding_index + encoding.length() - 1, stop_index - encoding.length());
+	start_encoding_index += encoding.length();
+	stop_index -= encoding.length();
+	const std::string encoding_type = client_msg.substr(start_encoding_index, stop_index);
 	return encoding_type;
 }
 
