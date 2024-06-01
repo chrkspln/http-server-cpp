@@ -13,6 +13,17 @@
 #include <netdb.h>
 #include <thread>
 
+int create_socket();
+void default_success_response(const int& client_fd);
+void default_fail_response(const int& client_fd);
+void get_echo_response(const int& client_fd, const std::string& client_msg);
+std::string encoding_request(const std::string& client_msg, const int& start_encoding_index);
+void get_user_ag_response(const int& client_fd, const std::string& client_msg);
+void get_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir);
+void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir);
+void processing_user_request(const int& client_fd, const std::string& client_msg, const std::string& dir);
+void handle_client(const int& client_fd, const std::string& dir);
+
 constexpr int buffer = 1024;
 constexpr int connection_backlog = 5;
 
@@ -43,16 +54,36 @@ void default_fail_response(const int& client_fd) {
 }
 
 void get_echo_response(const int& client_fd, const std::string& client_msg) {
+	std::string get = "GET /echo/";
 	const int stop_index = client_msg.find("HTTP");
 
 	// Extract the message to be sent back to the client:
-	// 10 is the length of "GET /echo/", 11 is the length of "GET /echo/ plus whitespace at the end of the word"
-	const std::string echo_msg = client_msg.substr(10, stop_index - 11);
-	const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-		+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
-	send(client_fd, response.data(), response.length(), 0);
-	connection_ended.store(true, std::memory_order::release);
-	connection_ended.notify_all();
+	const std::string echo_msg = client_msg.substr(get.length() - 1, stop_index - get.length());
+
+	if (const auto index = client_msg.find("Accept-Encoding: "); index != std::string::npos) {
+		std::string encode = encoding_request(client_msg, index);
+		if (encode != "invalid-encoding") {
+			std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + encode + "\r\n\r\n" + echo_msg;
+			send(client_fd, response.data(), response.length(), 0);
+			connection_ended.store(true, std::memory_order::release);
+			connection_ended.notify_all();
+		}
+	} else {
+
+		const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+			+ std::to_string(echo_msg.length()) + "\r\n\r\n" + echo_msg;
+		send(client_fd, response.data(), response.length(), 0);
+		connection_ended.store(true, std::memory_order::release);
+		connection_ended.notify_all();
+	}
+}
+
+std::string encoding_request(const std::string& client_msg, const int& start_encoding_index) {
+	std::string encoding = "Accept-Encoding: ";
+	int stop_index = client_msg.find("\r\n\r\n", start_encoding_index);
+	const std::string encoding_type = client_msg.substr(start_encoding_index + encoding.length() - 1, stop_index - encoding.length());
+	return encoding_type;
 }
 
 void get_user_ag_response(const int& client_fd, const std::string& client_msg) {
@@ -72,8 +103,9 @@ void get_user_ag_response(const int& client_fd, const std::string& client_msg) {
 }
 
 void get_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
+	std::string get_files = "GET /files/";
 	const int stop_index = client_msg.find("HTTP");
-	const std::string echo_file = client_msg.substr(11, stop_index - 12);
+	const std::string echo_file = client_msg.substr(get_files.length() - 1, stop_index - get_files.length());
 	std::ifstream ifs(dir + echo_file);
 	if (ifs.good()) {
 		std::stringstream content{};
@@ -86,12 +118,14 @@ void get_files_response(const int& client_fd, const std::string& client_msg, con
 }
 
 void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir) {
+	std::string post_files = "POST /files/";
 	int stop_index = client_msg.find("HTTP");
-	const std::string echo_file = client_msg.substr(11, stop_index - 12);
+	const std::string echo_file = client_msg.substr(post_files.length() - 1, stop_index - post_files.length());
 
-	int start_index = client_msg.find("Content-Length: ");
+	std::string content_len_msg = "Content-Length: ";
+	int start_index = client_msg.find(content_len_msg);
 	stop_index = client_msg.find("\r\n\r\n", start_index);
-	const std::string echo_file_contents_len = client_msg.substr(start_index + 16, stop_index - 17);
+	const std::string echo_file_contents_len = client_msg.substr(start_index + content_len_msg.length() - 1, stop_index - content_len_msg.length());
 
 	start_index = client_msg.find("\r\n\r\n");
 	const std::string echo_file_contents = client_msg.substr(start_index + 4, std::stoi(echo_file_contents_len));
