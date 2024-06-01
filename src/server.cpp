@@ -4,6 +4,8 @@
 #include <vector>
 #include <threads.h>
 #include <cstdlib>
+// i couldnt make zlib.h work on ubuntu so i had to use it from android ndk
+#include "../../../../../Microsoft/AndroidNDK/android-ndk-r21e/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/zlib.h"
 #include <string>
 #include <cstring>
 #include <unistd.h>
@@ -23,6 +25,7 @@ void get_files_response(const int& client_fd, const std::string& client_msg, con
 void post_files_response(const int& client_fd, const std::string& client_msg, const std::string& dir);
 void processing_user_request(const int& client_fd, const std::string& client_msg, const std::string& dir);
 void handle_client(const int& client_fd, const std::string& dir);
+std::string gzip_compress(const std::string& data);
 
 constexpr int buffer = 1024;
 constexpr int connection_backlog = 5;
@@ -64,8 +67,11 @@ void get_echo_response(const int& client_fd, const std::string& client_msg) {
 		and client_msg.find("invalid-encoding") == std::string::npos) {
 		std::string encode = encoding_request(client_msg, index);
 		if (encode.find("gzip") != std::string::npos) {
+
+			// Compress the message using gzip:
+			std::string compressed_msg = gzip_compress(echo_msg);
 			std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-				+ std::to_string(echo_msg.length()) + "\r\nContent-Encoding: " + "gzip" + "\r\n\r\n" + echo_msg;
+				+ std::to_string(compressed_msg.size()) + "\r\nContent-Encoding: " + "gzip" + "\r\n\r\n" + compressed_msg;
 			send(client_fd, response.data(), response.length(), 0);
 			connection_ended.store(true, std::memory_order::release);
 			connection_ended.notify_all();
@@ -170,6 +176,33 @@ void handle_client(const int& client_fd, const std::string& dir) {
 	processing_user_request(client_fd, client_msg, dir);
 	close(client_fd);
 }
+
+std::string gzip_compress(const std::string& data) {
+	z_stream zs;
+	memset(&zs, 0, sizeof(zs));
+	if (deflateInit2(&zs, Z_BEST_COMPRESSION, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+		throw std::runtime_error("deflateInit2 failed while compressing.");
+	}
+	zs.next_in = (Bytef*)data.data();
+	zs.avail_in = data.size();
+	int ret;
+	char outbuffer[32768];
+	std::string outstring;
+	do {
+		zs.next_out = reinterpret_cast<Bytef*>(outbuffer);
+		zs.avail_out = sizeof(outbuffer);
+		ret = deflate(&zs, Z_FINISH);
+		if (outstring.size() < zs.total_out) {
+			outstring.append(outbuffer, zs.total_out - outstring.size());
+		}
+	} while (ret == Z_OK);
+	deflateEnd(&zs);
+	if (ret != Z_STREAM_END) {
+		throw std::runtime_error("Exception during zlib compression: (" + std::to_string(ret) + ") " + zs.msg);
+	}
+	return outstring;
+}
+
 
 int main(int argc, char** argv) {
 	std::string dir{};
